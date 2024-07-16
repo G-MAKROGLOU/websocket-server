@@ -22,22 +22,36 @@ var connToRoomMutex = sync.Mutex{}
 type SocketServer struct {
 	Path string
 	Port string
+	events SocketServerEvents
+}
+
+// SocketServerEvents holds the events that can be emitted on different server actions
+type SocketServerEvents interface {
+	OnStartError(err error)
+	OnSend(data map[string]interface{})
+	OnSendError(err error)
+}
+
+// NewSocketServer creates a new SocketServer instance and returns a pointer to it
+func (s *SocketServer) NewSocketServer(path string, port string, events SocketServerEvents) *SocketServer {
+	return &SocketServer {
+		Path: path,
+		Port: port,
+		events: events,
+	}
 }
 
 // Start starts the socket server
-func (s *SocketServer) Start() error {
+func (s *SocketServer) Start() {
 	
 	http.Handle(s.Path, websocket.Handler(s.handler))
 	
 	fmt.Println("Starting socket server on port ", s.Port, ", path ", s.Path)
 	
 	if err := http.ListenAndServe(s.Port, nil); err != nil {
-		return err
+		s.events.OnStartError(err)
 	}
-	
-	return nil
 }
-
 
 func (s *SocketServer) handler(ws *websocket.Conn) {
 	sessID := strings.Split(ws.Request().Header.Get("Cookie"), "=")[1]
@@ -73,11 +87,46 @@ func (s *SocketServer) handler(ws *websocket.Conn) {
 		if msgType != "" && msgType == "gm_ws_multicast" {
 			roomName := msg["Gm_Ws_Room"].(string)
 			delete(msg, "Gm_Ws_Room")
-			sendTo(ws, roomName, msg)
+			s.sendTo(ws, sessID, roomName, msg)
 		}
 
 		if msgType != "" && msgType == "gm_ws_broadcast" {
-			send(ws, msg)
+			s.send(ws, sessID, msg)
+		}
+	}
+}
+
+// Send sends a broadcast message to all connected sockets on the server
+func (s *SocketServer) send(ws *websocket.Conn, sessID string, data map[string]interface{}) {
+	for _, socket := range allCons {
+		if  socket != ws {
+			err := websocket.JSON.Send(socket, data)
+			if err != nil {
+				disconnect(sessID, socket)
+				s.events.OnSendError(err)
+				return
+			}
+			s.events.OnSend(data)
+		}
+	}
+}
+
+// SendTo sends a unitcast/multicast message to all sockets in a room
+func (s *SocketServer) sendTo(ws *websocket.Conn, sessID string, roomName string, data map[string]interface{}) {
+	roomsMutex.Lock()
+	defer roomsMutex.Unlock()
+
+	sockets := rooms[roomName]
+
+	for _, socket := range sockets {
+		if socket != ws {
+			err := websocket.JSON.Send(socket, data)
+			if err != nil {
+				disconnect(sessID, ws)
+				s.events.OnSendError(err)
+				return
+			}
+			s.events.OnSend(data)
 		}
 	}
 }
@@ -100,7 +149,6 @@ func addToRoom(roomName string, ws *websocket.Conn) {
 	if exists {
 		rooms[roomName] = append(rooms[roomName], ws)
 	}
-	fmt.Println("[ADD:] ROOM: ", roomName, " CLIENTS: ", len(rooms[roomName]))
 }
 
 // RemoveClient removes a client from a room
@@ -124,8 +172,6 @@ func removeFromRoom(roomName string, ws *websocket.Conn) {
 	rooms[roomName] = newSockets
 
 	delete(connToRoom, ws)
-
-	fmt.Println("[REMOVE:] ROOM: ", roomName, " CLIENTS: ", len(rooms[roomName]))
 }
 
 // disconnects a client form the server and removes the client form any possible rooms
@@ -148,32 +194,3 @@ func disconnect(sessID string, ws *websocket.Conn) {
 	ws.Close()
 }
 
-// Send sends a broadcast message to all connected sockets on the server
-func send(ws *websocket.Conn, data map[string]interface{}) {
-	for _, socket := range allCons {
-		if  socket != ws {
-			err := websocket.JSON.Send(socket, data)
-			if err != nil {
-				fmt.Println("Send error:", err)
-			}
-		}
-	}
-}
-
-// SendTo sends a unitcast/multicast message to all sockets in a room
-func sendTo(ws *websocket.Conn, roomName string, data map[string]interface{}) {
-	roomsMutex.Lock()
-	defer roomsMutex.Unlock()
-
-	sockets := rooms[roomName]
-
-	for _, s := range sockets {
-		if s != ws {
-			err := websocket.JSON.Send(s, data)
-			if err != nil {
-				fmt.Println("Send error:", err)
-				removeFromRoom(roomName, s)
-			}
-		}
-	}
-}
