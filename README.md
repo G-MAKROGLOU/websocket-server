@@ -6,7 +6,7 @@ package main
 import (
 	"fmt"
 	"log"
-	sockets "github.com/G-MAKROGLOU/websocket"
+	sockets "github.com/G-MAKROGLOU/websocket-server"
 
 	"golang.org/x/net/websocket"
 )
