@@ -29,15 +29,15 @@ package main
 
 import (
 	"fmt"
-	sockets "github.com/G-MAKROGLOU/websocket-server"
+	server "github.com/G-MAKROGLOU/websocket-server"
 )
 
 func main() {
     port := ":5000"
     path := "/ws"
-	server := server.NewSocketServer(path, port, CustomEvents{});
+	s := server.NewSocketServer(path, port, CustomEvents{});
 
-	if err := server.Start(); err != nil {
+	if err := s.Start(); err != nil {
 		fmt.Println("Failed to start socket server: ", err)
 	}
 }
