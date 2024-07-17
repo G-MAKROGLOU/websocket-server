@@ -20,9 +20,9 @@ func (c CustomEvents) OnSend(data map[string]interface{}) {
 func (c CustomEvents) OnSendError(err error) {
 	fmt.Println("[SERVER] Failed to send ", err)
 }
-
-
 ```
+
+# SERVER (server.go)
 
 ```go
 package main
@@ -44,32 +44,4 @@ func main() {
 		fmt.Println("Failed to start socket server: ", err)
 	}
 }
-
-```
-
-
-
-# SERVER (server.go)
-
-```go
-package main
-
-import (
-	"fmt"
-	"log"
-	server "github.com/G-MAKROGLOU/websocket-server"
-
-	"golang.org/x/net/websocket"
-)
-
-func main() {
-    port := ":5000"
-    path := "/ws"
-	server := server.NewSocketServer(path, port);
-
-	if err := s.Start(); err != nil {
-		fmt.Println("Failed to start socket server: ", err)
-	}
-}
-
 ```
