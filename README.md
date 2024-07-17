@@ -29,7 +29,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	sockets "github.com/G-MAKROGLOU/websocket-server"
 )
 
