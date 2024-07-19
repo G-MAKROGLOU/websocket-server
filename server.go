@@ -87,17 +87,17 @@ func (s *SocketServer) handler(ws *websocket.Conn) {
 		if msgType != "" && msgType == "gm_ws_multicast" {
 			roomName := msg["Gm_Ws_Room"].(string)
 			delete(msg, "Gm_Ws_Room")
-			s.sendTo(ws, sessID, roomName, msg)
+			s.sendJSONTo(ws, sessID, roomName, msg)
 		}
 
 		if msgType != "" && msgType == "gm_ws_broadcast" {
-			s.send(ws, sessID, msg)
+			s.sendJSON(ws, sessID, msg)
 		}
 	}
 }
 
 // Send sends a broadcast message to all connected sockets on the server
-func (s *SocketServer) send(ws *websocket.Conn, sessID string, data map[string]interface{}) {
+func (s *SocketServer) sendJSON(ws *websocket.Conn, sessID string, data map[string]interface{}) {
 	for _, socket := range allCons {
 		if  socket != ws {
 			err := websocket.JSON.Send(socket, data)
@@ -112,7 +112,7 @@ func (s *SocketServer) send(ws *websocket.Conn, sessID string, data map[string]i
 }
 
 // SendTo sends a unitcast/multicast message to all sockets in a room
-func (s *SocketServer) sendTo(ws *websocket.Conn, sessID string, roomName string, data map[string]interface{}) {
+func (s *SocketServer) sendJSONTo(ws *websocket.Conn, sessID string, roomName string, data map[string]interface{}) {
 	roomsMutex.Lock()
 	defer roomsMutex.Unlock()
 
