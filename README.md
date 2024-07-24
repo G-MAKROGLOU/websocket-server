@@ -65,13 +65,6 @@ func withPath(s *SocketServer) {
 
 ```
 
-To override the server type (json | text):
-```go
-func withType(s *SocketServer) {
-    s.Type = "text"
-}
-
-```
 
 Then you can start a server with your custom configuration:
 
@@ -84,7 +77,7 @@ import (
 )
 
 func main() {
-    s := server.New(CustomEvents{}, withPort, withPath, withType);
+    s := server.New(CustomEvents{}, withPort, withPath);
 
     if err := s.Start(); err != nil {
         log.Fatalln("Failed to start socket server: ", err)
