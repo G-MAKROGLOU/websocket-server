@@ -40,7 +40,6 @@ The default configuration for the websocket server is the following:
 &SocketServer {
     Path: "/ws",
     Port: ":3000"
-    Type: "json",
 }
 
 ```
