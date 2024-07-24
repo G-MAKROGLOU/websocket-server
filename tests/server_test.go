@@ -22,9 +22,13 @@ func withPath(config *server.SocketServer) {
 	config.Path = "/wss"
 }
 
+func withAnotherPath(config *server.SocketServer) {
+	config.Path = "/wsss"
+}
+
 func TestWrongPort(t *testing.T){
 	
-	s := server.New(server.NOOPSocketServerEvents{}, withFalsePort)
+	s := server.New(server.NOOPSocketServerEvents{}, withPath, withFalsePort)
 	
 	hasError := make(chan bool)
 	
@@ -61,7 +65,7 @@ func TestWithDefaultConfig(t *testing.T) {
 
 func TestWithCorrectCustomConfig(t *testing.T) {
 
-	s := server.New(server.NOOPSocketServerEvents{}, withPort, withPath)
+	s := server.New(server.NOOPSocketServerEvents{}, withPort, withAnotherPath)
 	
 	go func() {
 		time.Sleep(20 * time.Second)
