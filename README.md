@@ -1,3 +1,10 @@
+# INSTALLATION
+
+```go
+go get github.com/G-MAKROGLOU/websocket-server
+```
+
+
 # SERVER (serverevents.go)
 
 You can have access to the data being sent/received to/from the server by implementing the following interface.
