@@ -1,7 +1,7 @@
 package server
 
 import (
-	"fmt"
+	"context"
 	"net/http"
 	"strings"
 	"sync"
@@ -18,42 +18,42 @@ var roomsMutex = sync.Mutex{}
 var connToRoom = make(map[*websocket.Conn]string)
 var connToRoomMutex = sync.Mutex{}
 
-// SocketServer represents the socket server
-type SocketServer struct {
-	Path string
-	Port string
-	events SocketServerEvents
-}
-
-// SocketServerEvents holds the events that can be emitted on different server actions
-type SocketServerEvents interface {
-	OnStartError(err error)
-	OnSend(data map[string]interface{})
-	OnSendError(err error)
-}
-
-// NewSocketServer creates a new SocketServer instance and returns a pointer to it
-func (s *SocketServer) NewSocketServer(path string, port string, events SocketServerEvents) *SocketServer {
-	return &SocketServer {
-		Path: path,
-		Port: port,
-		events: events,
+// New creates a new SocketServer instance and returns a pointer to it
+func New(events SocketServerEvents, configs ...ConfigFunc) *SocketServer {
+	config := defaultConfig()
+	config.events = events
+	
+	for _, fn := range configs {
+		fn(&config)
 	}
+	
+	return &config
 }
 
 // Start starts the socket server
-func (s *SocketServer) Start() {
-	
-	http.Handle(s.Path, websocket.Handler(s.handler))
-	
-	fmt.Println("Starting socket server on port ", s.Port, ", path ", s.Path)
-	
-	if err := http.ListenAndServe(s.Port, nil); err != nil {
-		s.events.OnStartError(err)
+func (s *SocketServer) Start() error {
+	server := &http.Server{Addr: s.Port}
+
+	s.server = server
+
+	http.Handle(s.Path, websocket.Handler(s.jsonHandler))
+
+	return server.ListenAndServe()
+}
+
+// Stop stops the server
+func (s *SocketServer) Stop() error {
+	return s.server.Shutdown(context.Background())
+}
+
+func defaultConfig() SocketServer {
+	return SocketServer {
+		Path: "/ws",
+		Port: ":3000",
 	}
 }
 
-func (s *SocketServer) handler(ws *websocket.Conn) {
+func (s *SocketServer) jsonHandler(ws *websocket.Conn) {
 	sessID := strings.Split(ws.Request().Header.Get("Cookie"), "=")[1]
 	
 	allConsMutex.Lock()
@@ -64,33 +64,33 @@ func (s *SocketServer) handler(ws *websocket.Conn) {
 		var msg map[string]interface{}
 		err := websocket.JSON.Receive(ws, &msg)
 		if err != nil {
-			break
+			s.events.onReceiveError(ws, err)
 		}
 		
-		msgType := msg["Gm_Ws_Type"].(string)
-		delete(msg, "Gm_Ws_Type")
+		msgType := msg["GmWsType"].(string)
+		delete(msg, "GmWsType")
 
-		if msgType != "" && msgType == "gm_ws_join" {
-			roomName := msg["Gm_Ws_Room"].(string)
+		if msgType != "" && msgType == "join" {
+			roomName := msg["GmWsRoom"].(string)
 			addToRoom(roomName, ws)
 		}
 
-		if msgType != "" && msgType == "gm_ws_leave" {
-			roomName := msg["Gm_Ws_Room"].(string)
+		if msgType != "" && msgType == "leave" {
+			roomName := msg["GmWsRoom"].(string)
 			removeFromRoom(roomName, ws)
 		}
 
-		if msgType != "" && msgType == "gm_ws_disconnect" {
+		if msgType != "" && msgType == "disconnect" {
 			disconnect(sessID, ws)
 		}
 
-		if msgType != "" && msgType == "gm_ws_multicast" {
-			roomName := msg["Gm_Ws_Room"].(string)
-			delete(msg, "Gm_Ws_Room")
+		if msgType != "" && msgType == "multicast" {
+			roomName := msg["GmWsRoom"].(string)
+			delete(msg, "GmWsRoom")
 			s.sendJSONTo(ws, sessID, roomName, msg)
 		}
 
-		if msgType != "" && msgType == "gm_ws_broadcast" {
+		if msgType != "" && msgType == "broadcast" {
 			s.sendJSON(ws, sessID, msg)
 		}
 	}
@@ -103,10 +103,10 @@ func (s *SocketServer) sendJSON(ws *websocket.Conn, sessID string, data map[stri
 			err := websocket.JSON.Send(socket, data)
 			if err != nil {
 				disconnect(sessID, socket)
-				s.events.OnSendError(err)
+				s.events.onSendError(ws, err)
 				return
 			}
-			s.events.OnSend(data)
+			s.events.onSend(data)
 		}
 	}
 }
@@ -123,10 +123,10 @@ func (s *SocketServer) sendJSONTo(ws *websocket.Conn, sessID string, roomName st
 			err := websocket.JSON.Send(socket, data)
 			if err != nil {
 				disconnect(sessID, ws)
-				s.events.OnSendError(err)
+				s.events.onSendError(ws, err)
 				return
 			}
-			s.events.OnSend(data)
+			s.events.onSend(data)
 		}
 	}
 }

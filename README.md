@@ -1,5 +1,8 @@
 # SERVER (serverevents.go)
 
+You can have access to the data being sent/received to/from the server by implementing the following interface.
+In case you don't want the server to just handle traffic and nothing more, you can use the provided NOOPSocketServerEvents{}
+
 ```go
 package main
 
@@ -7,38 +10,110 @@ import "fmt"
 
 type CustomEvents struct {}
 
-func (c CustomEvents) OnStartError(err error) {
-    fmt.Println("[SERVER] Failed to start ", err)
-}
-
-func (c CustomEvents) OnSend(data map[string]interface{}) {
+func (c CustomEvents) onSend(data map[string]interface{}) {
     b, _ := json.MarshalIndent(data, "", " ")
 
-    fmt.Println("[SERVER] SENT: ", string(b))
+    fmt.Println("[server] sent: ", string(b))
 }
 
-func (c CustomEvents) OnSendError(err error) {
-    fmt.Println("[SERVER] Failed to send ", err)
+func (c CustomEvents) onSendError(ws *websocket.Conn, err error) {
+    fmt.Println("[server] failed to send ", err)
 }
+
+func (c CustomEvents) onReceive(data map[string]interface{}) {
+    b, _ := json.MarshalIndent(data, "", " ")
+
+    fmt.Println("[server] received: ", string(b))
+}
+
+func (c CustomEvents) onReceiveError(ws *websocket.Conn, err error) {
+    fmt.Println("[server] failed to receive ", err)
+}
+
 ```
 
 # SERVER (server.go)
+
+The default configuration for the websocket server is the following:
+
+```go
+&SocketServer {
+    Path: "/ws",
+    Port: ":3000"
+    Type: "json",
+}
+
+```
+
+Which you can ovveride by providing any number of functions that receive a pointer to *SocketServer. For example:
+
+To override the port:
+
+```go
+func withPort(s *SocketServer) {
+    s.Port = ":6000"
+}
+
+```
+
+To override the path:
+
+```go
+func withPath(s *SocketServer) {
+    s.Path = "/wss"
+}
+
+```
+
+To override the server type (json | text):
+```go
+func withType(s *SocketServer) {
+    s.Type = "text"
+}
+
+```
+
+Then you can start a server with your custom configuration:
 
 ```go
 package main
 
 import (
-    "fmt"
+    "log"
     server "github.com/G-MAKROGLOU/websocket-server"
 )
 
 func main() {
-    port := ":5000"
-    path := "/ws"
-    s := server.NewSocketServer(path, port, CustomEvents{});
+    s := server.New(CustomEvents{}, withPort, withPath, withType);
 
     if err := s.Start(); err != nil {
-        fmt.Println("Failed to start socket server: ", err)
+        log.Fatalln("Failed to start socket server: ", err)
+    }
+}
+
+```
+
+or start a server with the default configuration:
+
+```go
+package main
+
+import (
+    "log"
+    server "github.com/G-MAKROGLOU/websocket-server"
+)
+
+func main() {
+    s := server.New(CustomEvents{});
+
+    if err := s.Start(); err != nil {
+        log.Fatalln("Failed to start socket server: ", err)
     }
 }
 ```
+
+To use the server with any other client other than
+```github.com/G-MAKROGLOU/websocket-client``` that supports those functionalities out of the box, all your messages will have to
+include an extra property named: ```GmWsType``` with a value of: ```join```, ```leave```, ```disconnect```, ```multicast```, or ```broadcast```.
+When ```GmWsType``` is ```join```, ```leave```, or ```multicast```, you need to include an extra property named ```GmWsRoom``` with the name of the room
+that you want to perform each action. Those properties are removed before the exchange and the payload arrives cleaned up to the clients.
