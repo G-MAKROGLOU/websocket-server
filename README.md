@@ -8,7 +8,7 @@ go get github.com/G-MAKROGLOU/websocket-server
 # SERVER (serverevents.go)
 
 You can have access to the data being sent/received to/from the server by implementing the following interface.
-In case you don't want the server to just handle traffic and nothing more, you can use the provided NOOPSocketServerEvents{}
+In case you want the server to just handle traffic and nothing more, you can use the provided NOOPSocketServerEvents{}
 
 ```go
 package main
