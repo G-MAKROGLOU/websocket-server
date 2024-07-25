@@ -76,3 +76,15 @@ func TestWithCorrectCustomConfig(t *testing.T) {
 	
 	assert.Equal(t, errors.New("http: Server closed"), err)
 }
+
+
+func TestRooms(t *testing.T) {
+	s := New(NOOPSocketServerEvents{})
+	
+	go func() {
+		time.Sleep(20 * time.Second)
+		err := s.Stop()
+		assert.Equal(t, nil, err)
+	}()
+
+}

@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"errors"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -36,6 +38,10 @@ func (s *SocketServer) Start() error {
 
 	s.server = server
 
+	if !strings.HasPrefix(s.Path, "/") {
+		return errors.New("invalid path specified")
+	} 
+
 	http.Handle(s.Path, websocket.Handler(s.jsonHandler))
 
 	return server.ListenAndServe()
@@ -63,8 +69,14 @@ func (s *SocketServer) jsonHandler(ws *websocket.Conn) {
 	for {
 		var msg map[string]interface{}
 		err := websocket.JSON.Receive(ws, &msg)
-		if err != nil {
-			s.events.onReceiveError(ws, err)
+		
+		if err != nil && err == err.(*net.OpError) {
+			disconnect(sessID, ws)
+			break
+		}
+
+		if err != nil && err != err.(*net.OpError) {
+			s.events.OnReceiveError(ws, err)
 		}
 		
 		msgType := msg["GmWsType"].(string)
@@ -96,22 +108,20 @@ func (s *SocketServer) jsonHandler(ws *websocket.Conn) {
 	}
 }
 
-// Send sends a broadcast message to all connected sockets on the server
 func (s *SocketServer) sendJSON(ws *websocket.Conn, sessID string, data map[string]interface{}) {
 	for _, socket := range allCons {
 		if  socket != ws {
 			err := websocket.JSON.Send(socket, data)
 			if err != nil {
 				disconnect(sessID, socket)
-				s.events.onSendError(ws, err)
+				s.events.OnSendError(ws, err)
 				return
 			}
-			s.events.onSend(data)
+			s.events.OnSent(data)
 		}
 	}
 }
 
-// SendTo sends a unitcast/multicast message to all sockets in a room
 func (s *SocketServer) sendJSONTo(ws *websocket.Conn, sessID string, roomName string, data map[string]interface{}) {
 	roomsMutex.Lock()
 	defer roomsMutex.Unlock()
@@ -123,10 +133,10 @@ func (s *SocketServer) sendJSONTo(ws *websocket.Conn, sessID string, roomName st
 			err := websocket.JSON.Send(socket, data)
 			if err != nil {
 				disconnect(sessID, ws)
-				s.events.onSendError(ws, err)
+				s.events.OnSendError(ws, err)
 				return
 			}
-			s.events.onSend(data)
+			s.events.OnSent(data)
 		}
 	}
 }
@@ -151,7 +161,6 @@ func addToRoom(roomName string, ws *websocket.Conn) {
 	}
 }
 
-// RemoveClient removes a client from a room
 func removeFromRoom(roomName string, ws *websocket.Conn) {
 	connToRoomMutex.Lock()
 	defer connToRoomMutex.Unlock()
@@ -174,7 +183,6 @@ func removeFromRoom(roomName string, ws *websocket.Conn) {
 	delete(connToRoom, ws)
 }
 
-// disconnects a client form the server and removes the client form any possible rooms
 func disconnect(sessID string, ws *websocket.Conn) {
 	allConsMutex.Lock()
 	defer allConsMutex.Unlock()
@@ -193,4 +201,3 @@ func disconnect(sessID string, ws *websocket.Conn) {
 
 	ws.Close()
 }
-

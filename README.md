@@ -1,7 +1,7 @@
 # INSTALLATION
 
 ```go
-go get github.com/G-MAKROGLOU/websocket-server
+go get github.com/G-MAKROGLOU/websocket-server@latest
 ```
 
 
@@ -13,30 +13,30 @@ In case you want the server to just handle traffic and nothing more, you can use
 ```go
 package main
 
-import "fmt"
+// Events implements SocketServerEvents interface
+type Events struct{}
 
-type CustomEvents struct {}
-
-func (c CustomEvents) onSend(data map[string]interface{}) {
-    b, _ := json.MarshalIndent(data, "", " ")
-
-    fmt.Println("[server] sent: ", string(b))
+// OnSent is used when you want to perform a server action after a message is sent
+func (e Events) OnSent(data map[string]interface{}) {
+	// TODO: do stuff here...
+	// logging, update db, internal states etc.
 }
 
-func (c CustomEvents) onSendError(ws *websocket.Conn, err error) {
-    fmt.Println("[server] failed to send ", err)
+// OnSendError is used when you want to handle a send error. When the server fails to send a message
+// to a connection, it disconnects the socket, clears all collections, and propagates the error to you through this
+// function. You can then perform any further action, like logging, updating states etc. 
+func (e Events) OnSendError(ws *websocket.Conn, err error) {
+	// TODO: do stuff here...
+	// logging, update db, internal states etc.
 }
 
-func (c CustomEvents) onReceive(data map[string]interface{}) {
-    b, _ := json.MarshalIndent(data, "", " ")
-
-    fmt.Println("[server] received: ", string(b))
-}
-
-func (c CustomEvents) onReceiveError(ws *websocket.Conn, err error) {
-    fmt.Println("[server] failed to receive ", err)
-}
-
+//OnReceiveError used when the server fails to receive from a socket for any other reason other
+// a closed connection. The error is propagated to you through this function and you can perform any further
+// action, like logging, updating states etc.
+func (e Events) OnReceiveError(ws *websocket.Conn, err error) {
+	// TODO: do stuff here...
+	// logging, update db, internal states etc.
+} 
 ```
 
 # SERVER (server.go)
@@ -78,16 +78,21 @@ Then you can start a server with your custom configuration:
 package main
 
 import (
-    "log"
+    "log/slog"
     server "github.com/G-MAKROGLOU/websocket-server"
 )
 
 func main() {
-    s := server.New(CustomEvents{}, withPort, withPath);
+	s := server.New(Events{}, withPort, withPath)
 
-    if err := s.Start(); err != nil {
-        log.Fatalln("Failed to start socket server: ", err)
-    }
+	err := s.Start();
+		
+	if err == http.ErrServerClosed {
+		slog.Info("server stopped")
+	} else {
+		msg := fmt.Sprintf("unexpected server error: %s", err.Error())
+		slog.Error(msg)
+	}
 }
 
 ```
@@ -103,11 +108,16 @@ import (
 )
 
 func main() {
-    s := server.New(CustomEvents{});
+    s := server.New(Events{})
 
-    if err := s.Start(); err != nil {
-        log.Fatalln("Failed to start socket server: ", err)
-    }
+	err := s.Start();
+		
+	if err == http.ErrServerClosed {
+		slog.Info("server stopped")
+	} else {
+		msg := fmt.Sprintf("unexpected server error: %s", err.Error())
+		slog.Error(msg)
+	}
 }
 ```
 
