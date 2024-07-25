@@ -1,4 +1,4 @@
-package tests
+package server
 
 import (
 	"errors"
@@ -6,29 +6,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/G-MAKROGLOU/websocket-server/server"
 	"github.com/stretchr/testify/assert"
 )
 
-func withFalsePort(config *server.SocketServer) {
+func withFalsePort(config *SocketServer) {
 	config.Port = "5000"
 }
 
-func withPort(config *server.SocketServer) {
+func withPort(config *SocketServer) {
 	config.Port = ":5500"
 }
 
-func withPath(config *server.SocketServer) {
+func withPath(config *SocketServer) {
 	config.Path = "/wss"
 }
 
-func withAnotherPath(config *server.SocketServer) {
+func withAnotherPath(config *SocketServer) {
 	config.Path = "/wsss"
 }
 
 func TestWrongPort(t *testing.T){
 	
-	s := server.New(server.NOOPSocketServerEvents{}, withPath, withFalsePort)
+	s := New(NOOPSocketServerEvents{}, withPath, withFalsePort)
 	
 	hasError := make(chan bool)
 	
@@ -50,7 +49,7 @@ func TestWrongPort(t *testing.T){
 
 func TestWithDefaultConfig(t *testing.T) {
 
-	s := server.New(server.NOOPSocketServerEvents{})
+	s := New(NOOPSocketServerEvents{})
 	
 	go func() {
 		time.Sleep(20 * time.Second)
@@ -65,7 +64,7 @@ func TestWithDefaultConfig(t *testing.T) {
 
 func TestWithCorrectCustomConfig(t *testing.T) {
 
-	s := server.New(server.NOOPSocketServerEvents{}, withPort, withAnotherPath)
+	s := New(NOOPSocketServerEvents{}, withPort, withAnotherPath)
 	
 	go func() {
 		time.Sleep(20 * time.Second)
