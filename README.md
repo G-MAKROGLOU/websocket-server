@@ -26,16 +26,16 @@ func (e Events) OnSent(data map[string]interface{}) {
 // to a connection, it disconnects the socket, clears all collections, and propagates the error to you through this
 // function. You can then perform any further action, like logging, updating states etc. 
 func (e Events) OnSendError(ws *websocket.Conn, err error) {
-	// TODO: do stuff here...
-	// logging, update db, internal states etc.
+    // TODO: do stuff here...
+    // logging, update db, internal states etc.
 }
 
 //OnReceiveError used when the server fails to receive from a socket for any other reason other
 // a closed connection. The error is propagated to you through this function and you can perform any further
 // action, like logging, updating states etc.
 func (e Events) OnReceiveError(ws *websocket.Conn, err error) {
-	// TODO: do stuff here...
-	// logging, update db, internal states etc.
+    // TODO: do stuff here...
+    // logging, update db, internal states etc.
 } 
 ```
 
@@ -83,16 +83,16 @@ import (
 )
 
 func main() {
-	s := server.New(Events{}, withPort, withPath)
+    s := server.New(Events{}, withPort, withPath)
 
-	err := s.Start();
+    err := s.Start();
 		
-	if err == http.ErrServerClosed {
-		slog.Info("server stopped")
-	} else {
-		msg := fmt.Sprintf("unexpected server error: %s", err.Error())
-		slog.Error(msg)
-	}
+    if err == http.ErrServerClosed {
+	slog.Info("server stopped")
+    } else {
+	msg := fmt.Sprintf("unexpected server error: %s", err.Error())
+	slog.Error(msg)
+    }
 }
 
 ```
@@ -110,14 +110,14 @@ import (
 func main() {
     s := server.New(Events{})
 
-	err := s.Start();
+    err := s.Start();
 		
-	if err == http.ErrServerClosed {
-		slog.Info("server stopped")
-	} else {
-		msg := fmt.Sprintf("unexpected server error: %s", err.Error())
-		slog.Error(msg)
-	}
+    if err == http.ErrServerClosed {
+	slog.Info("server stopped")
+    } else {
+	msg := fmt.Sprintf("unexpected server error: %s", err.Error())
+	slog.Error(msg)
+    }
 }
 ```
 
